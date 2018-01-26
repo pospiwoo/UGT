@@ -4,7 +4,7 @@ import sys
 # MS_result_file = sys.argv[2]
 ref_fa_file = 'ref_fa/uniprot_canonical.fasta'
 ref_fa_file = 'ref_fa/uniprot_can_iso.fasta'
-MS_result_file = 'result/20180126_ALDER_G2957_470_560_directDIA_20180125F1_Peptide.xls'
+MS_result_file = 'ms_result/20180126_ALDER_G2957_470_560_directDIA_20180125F1_Peptide.xls'
 
 master_seq = ''
 
@@ -27,6 +27,8 @@ cnt_all = 0
 cnt_novel = 0
 with open(MS_result_file, 'r') as inResultFile:
     for line in inResultFile:
+        if line.startswith("#") or line.startswith('PEP'):
+            continue
         data = line.split('\t')
         seq = data[0]
         cnt_all += 1

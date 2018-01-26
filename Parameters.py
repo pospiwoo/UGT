@@ -20,12 +20,21 @@ fasta_out_file_ = os.path.join(script_dir, 'fa', 'vcf_somatic_test_gae_2.fa')
 max_part_AA_len_ = 30
 # gene_module.py
 vcf_file_name_ = 'common_all_20170403_0.vcf'
-
-# SPL_generator_module.py
+# Location_module.py
+ref_fa_file_name_ = os.path.join(
+    script_dir, 'ref_fa', 'uniprot_canonical.fasta')
+ms_result_file_ = os.path.join(
+    script_dir, 'ms_result', '20180126_ALDER_G2957_470_560_directDIA_20180125F1_Peptide.xls')
+location_file_ = os.path.join(
+    script_dir, 'loc', '20180126_ALDER_G2957_470_560_directDIA_20180125F1_Peptide.txt')
 
 
 def empty_spl():
     return empty_spl_
+
+
+def ref_fa_file_name():
+    return ref_fa_file_name_
 
 
 def spl_out_file_name():
@@ -34,6 +43,7 @@ def spl_out_file_name():
 
 def vcf_spl_bam_dir():
     return vcf_spl_bam_dir_
+
 # ACGT_module.py
 
 
@@ -47,11 +57,22 @@ def fasta_out_file():
 
 def max_part_AA_len():
     return max_part_AA_len_
+
 # Gene_module.py
 
 
 def vcf_file_name():
     return vcf_file_name_
+
+# Location_module.py
+
+
+def location_file():
+    return location_file_
+
+
+def ms_result_file():
+    return ms_result_file_
 
 
 # debug_output_on_ = False # False # True

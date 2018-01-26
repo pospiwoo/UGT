@@ -119,28 +119,28 @@ def formatChrNameForHuman(reference_name_str):
 
 
 def initDnaFaFile(chr_str):
-    return {'chr1': 'Homo_sapiens.GRCh38.dna.chromosome.1.fa', 
-    'chr2': 'Homo_sapiens.GRCh38.dna.chromosome.2.fa', 
-    'chr3': 'Homo_sapiens.GRCh38.dna.chromosome.3.fa', 
-    'chr4': 'Homo_sapiens.GRCh38.dna.chromosome.4.fa', 
-    'chr5': 'Homo_sapiens.GRCh38.dna.chromosome.5.fa', 
-    'chr6': 'Homo_sapiens.GRCh38.dna.chromosome.6.fa', 
-    'chr7': 'Homo_sapiens.GRCh38.dna.chromosome.7.fa', 
-    'chr8': 'Homo_sapiens.GRCh38.dna.chromosome.8.fa', 
-    'chr9': 'Homo_sapiens.GRCh38.dna.chromosome.9.fa', 
-    'chr10': 'Homo_sapiens.GRCh38.dna.chromosome.10.fa', 
-    'chr11': 'Homo_sapiens.GRCh38.dna.chromosome.11.fa', 
-    'chr12': 'Homo_sapiens.GRCh38.dna.chromosome.12.fa', 
-    'chr13': 'Homo_sapiens.GRCh38.dna.chromosome.13.fa', 
-    'chr14': 'Homo_sapiens.GRCh38.dna.chromosome.14.fa', 
-    'chr15': 'Homo_sapiens.GRCh38.dna.chromosome.15.fa', 
-    'chr16': 'Homo_sapiens.GRCh38.dna.chromosome.16.fa', 
-    'chr17': 'Homo_sapiens.GRCh38.dna.chromosome.17.fa', 
-    'chr18': 'Homo_sapiens.GRCh38.dna.chromosome.18.fa', 
-    'chr19': 'Homo_sapiens.GRCh38.dna.chromosome.19.fa', 
-    'chr20': 'Homo_sapiens.GRCh38.dna.chromosome.20.fa', 
-    'chrX': 'Homo_sapiens.GRCh38.dna.chromosome.X.fa', 
-    'chrY': 'Homo_sapiens.GRCh38.dna.chromosome.Y.fa'}
+    return {'chr1': 'Homo_sapiens.GRCh38.dna.chromosome.1.fa',
+            'chr2': 'Homo_sapiens.GRCh38.dna.chromosome.2.fa',
+            'chr3': 'Homo_sapiens.GRCh38.dna.chromosome.3.fa',
+            'chr4': 'Homo_sapiens.GRCh38.dna.chromosome.4.fa',
+            'chr5': 'Homo_sapiens.GRCh38.dna.chromosome.5.fa',
+            'chr6': 'Homo_sapiens.GRCh38.dna.chromosome.6.fa',
+            'chr7': 'Homo_sapiens.GRCh38.dna.chromosome.7.fa',
+            'chr8': 'Homo_sapiens.GRCh38.dna.chromosome.8.fa',
+            'chr9': 'Homo_sapiens.GRCh38.dna.chromosome.9.fa',
+            'chr10': 'Homo_sapiens.GRCh38.dna.chromosome.10.fa',
+            'chr11': 'Homo_sapiens.GRCh38.dna.chromosome.11.fa',
+            'chr12': 'Homo_sapiens.GRCh38.dna.chromosome.12.fa',
+            'chr13': 'Homo_sapiens.GRCh38.dna.chromosome.13.fa',
+            'chr14': 'Homo_sapiens.GRCh38.dna.chromosome.14.fa',
+            'chr15': 'Homo_sapiens.GRCh38.dna.chromosome.15.fa',
+            'chr16': 'Homo_sapiens.GRCh38.dna.chromosome.16.fa',
+            'chr17': 'Homo_sapiens.GRCh38.dna.chromosome.17.fa',
+            'chr18': 'Homo_sapiens.GRCh38.dna.chromosome.18.fa',
+            'chr19': 'Homo_sapiens.GRCh38.dna.chromosome.19.fa',
+            'chr20': 'Homo_sapiens.GRCh38.dna.chromosome.20.fa',
+            'chrX': 'Homo_sapiens.GRCh38.dna.chromosome.X.fa',
+            'chrY': 'Homo_sapiens.GRCh38.dna.chromosome.Y.fa'}
 
 
 def initGenePFile(chr_str):
@@ -154,3 +154,49 @@ def initGFFFile(chr_str):
 def writeListToFile(self, outFile, in_list):
     write_list = '\t'.join(in_list) + '\n'
     outFile.write(write_list)
+
+
+def CleanPeptideString(pep_str):
+    # print pep_str
+    if pep_str[1] == '.':
+        pep_str = pep_str[2:-2]
+    pep_str = pep_str.replace("0", "")
+    pep_str = pep_str.replace("1", "")
+    pep_str = pep_str.replace("2", "")
+    pep_str = pep_str.replace("3", "")
+    pep_str = pep_str.replace("4", "")
+    pep_str = pep_str.replace("5", "")
+    pep_str = pep_str.replace("6", "")
+    pep_str = pep_str.replace("7", "")
+    pep_str = pep_str.replace("8", "")
+    pep_str = pep_str.replace("9", "")
+    pep_str = pep_str.replace("+", "")
+    pep_str = pep_str.replace(".", "")
+    pep_str = pep_str.replace("?", "_")
+    pep_str = pep_str.replace("_", "")
+    pep_str = pep_str.replace("-", "")
+    pep_str = pep_str.replace("*", "")
+    pep_str = pep_str.replace("(", "")
+    pep_str = pep_str.replace(")", "")
+    pep_str = pep_str.replace("[", "")
+    pep_str = pep_str.replace("]", "")
+    return pep_str
+
+
+def replaceIdenMassAA(seq_str):
+    return seq_str.replace('I', 'L')
+    # return seq_str.replace('L', 'I')
+
+
+def parseRefProtFASTA(ref_fa_file):
+    master_seq = ''
+    with open(ref_fa_file, 'r') as inFaFile:
+        for line in inFaFile:
+            if line == '':
+                continue
+            if line.startswith('>'):
+                # cur_header = line[1:]
+                master_seq += 'X'
+                continue
+            master_seq += replaceIdenMassAA(line.strip())
+    return master_seq
