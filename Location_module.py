@@ -7,6 +7,7 @@ Created on Fri Jun 23 21:54:28 2017
 import os
 import sys
 import time
+import re
 from datetime import timedelta
 import Parameters as param
 import CustomFormats as formats
@@ -23,9 +24,15 @@ class GenomicLocation:
         self.pepdic = {}
         self.cnt_peptides = 0
         self.master_seq = master_seq
-        # self.parseRefProtFASTA()
+        self.initDBFileDIR()
+        print 'Processing determinNovelty....'
         self.determinNovelty()
-        # db_list = fasta_database_name.split(',')
+
+    def initDBFileDIR(self):
+        if os.path.isdir(self.fasta_database_name):
+            self.db_list = fasta_database_name.split(',')
+        else:
+            self.db_list = [self.fasta_database_name]
 
     def determinNovelty(self):
         cnt_all = 0
@@ -49,7 +56,7 @@ class GenomicLocation:
                 cnt_all += 1
                 if formats.replaceIdenMassAA(cleaned_seq[1:-2]) in self.master_seq:
                     continue
-                print cleaned_seq
+                # print cleaned_seq
                 cnt_novel += 1
                 if cleaned_seq in self.pepdic:
                     self.pepdic[cleaned_seq][0].append(line)
@@ -68,9 +75,10 @@ class GenomicLocation:
                         [], {}, [], 1, float(0), 0]
                     self.pepdic[cleaned_seq][0].append(line)
                     self.cnt_peptides += 1
-            print cnt_all, cnt_novel
-            for i in self.pepdic:
-                print i, self.pepdic[i]
+            print '# of peptides', cnt_all
+            print '# novel peptides', cnt_novel
+            # for i in self.pepdic:
+            #     print i, self.pepdic[i]
 
     def binarySearch(self, array, key, imin, imax):
         if (imax < imin):
@@ -142,7 +150,7 @@ class GenomicLocation:
         return location
 
     def SpliceDBRead(self):
-        for db in db_list:
+        for db in self.db_list:
             print 'Reading database: ', db
             fasta_database = open(db, 'r')
             dummy, fileExtension = os.path.splitext(fasta_database_name)
@@ -192,14 +200,14 @@ class GenomicLocation:
                     del fasta
             #>Splice@chr1@176@15444@0;20082126-20082213;20073655-20073753;20072948-20073092;20072024-20072144;20070131-20070219;  example of splice_info
 
-            pep_list = pepdic.keys()
+            pep_list = self.pepdic.keys()
             for pep in pep_list:
-                pep = CleanPeptideString(pep)
+                pep = formats.CleanPeptideString(pep)
                 location_index = [m.start()
                                   for m in re.finditer(pep, fasta_seq)]
                 pep_location = []
                 for location in location_index:
-                    index = binary_search(
+                    index = self.binarySearch(
                         index_info, location, 0, len(index_info)-1)
                     splice_info = fasta_info[index].split('@')
                     #full_seq = sequence_info[index]
@@ -235,7 +243,7 @@ class GenomicLocation:
                         length = [end[0]-start[0]]
                         chrNum = splice_info[0][1:]
 
-                    pep_location.append(get_location(
+                    pep_location.append(self.get_location(
                         start_seq, end_seq, start, end, length, strand, chrNum))
 
                 prev = 0
@@ -251,19 +259,91 @@ class GenomicLocation:
                 # previous pepdic
                 for loc in pep_location:
                     chrNum = loc[6]  # [-1]
-                    if not pepdic[pep][1].has_key(chrNum):
-                        pepdic[pep][1][chrNum] = [loc]
+                    if not chrNum in self.pepdic[pep][1]:
+                        self.pepdic[pep][1][chrNum] = [loc]
                     else:
-                        list_in_pepdic = pepdic[pep][1].get(chrNum)
+                        list_in_pepdic = self.pepdic[pep][1].get(chrNum)
                         is_in_list = 0
                         for i in list_in_pepdic:
                             if i[3] == loc[3]:
                                 is_in_list = 1
                         if is_in_list == 0:
-                            pepdic[pep][1][chrNum].append(loc)
+                            self.pepdic[pep][1][chrNum].append(loc)
         del fasta_info
         del index_info
         del fasta_seq
+
+    def LocationCounts(self):
+        # location count fill in
+        for pep in self.pepdic:
+            count = 0
+            for chr in self.pepdic[pep][1]:
+                count += len(self.pepdic[pep][1][chr])
+            if len(self.pepdic[pep]) == 5:
+                self.pepdic[pep].append(count)
+            else:
+                self.pepdic[pep][5] = count
+
+        # copy list
+        coordi_list = {}
+        for pep in self.pepdic:
+            for chrNum in self.pepdic[pep][1]:
+                if not chrNum in coordi_list.keys():
+                    coordi_list[chrNum] = {}
+                for list in self.pepdic[pep][1][chrNum]:
+                    coordi_list[chrNum][list[3]] = pep
+        #coordi_list = {'chr1':{100000:'PEPTIDE',1000100:'PEPDIDE'}}
+        # list_in_chr = [1000000,10000100,...] coordinates of peptide in each chromosome
+        # grouping_inf = [0,1,3,6,10,...] index of beginning groups
+
+        with open(self.location_file_name, 'w') as outFile:
+            outFile.write(
+                '#chr\tstart-end\tPEP\tspec_count\tlocation_count\tFDR\tSprob\n')
+
+            for chrNum in coordi_list:
+                list_in_chr = coordi_list[chrNum].keys()
+                list_in_chr.sort()
+                grouping_info = []
+                gstart = -3000
+                for index in range(len(list_in_chr)):
+                    if gstart + 5000 < list_in_chr[index]:
+                        grouping_info.append(index)
+                    gstart = list_in_chr[index]
+
+                Sprob = []
+                for group in range(len(grouping_info)-1):
+                    prob = 1
+                    for index in range(grouping_info[group], grouping_info[group+1]):
+                        prob *= (1 - (1-self.pepdic[coordi_list[chrNum][list_in_chr[index]]][
+                                 4]) / self.pepdic[coordi_list[chrNum][list_in_chr[index]]][5])
+                    prob = 1 - prob
+                    Sprob.append(prob)
+                if len(grouping_info) == 0:
+                    Sprob.append(0)
+                else:
+                    prob = 1
+                    for index in range(grouping_info[len(grouping_info)-1], len(coordi_list[chrNum])):
+                        prob *= (1 - (1-self.pepdic[coordi_list[chrNum][list_in_chr[index]]][
+                                 4]) / self.pepdic[coordi_list[chrNum][list_in_chr[index]]][5])
+                    prob = 1 - prob
+                    Sprob.append(prob)
+
+                for coord in list_in_chr:
+                    Sp_index = self.binarySearch(grouping_info, list_in_chr.index(
+                        coord), 0, len(grouping_info)-1)
+                    pep = coordi_list[chrNum][coord]
+                    outFile.write(chrNum+'\t')
+                    for i in self.pepdic[pep][1].get(chrNum):
+                        if i[3] != coord:
+                            continue
+                        for j in range(len(i[0])):
+                            outFile.write(str(i[0][j])+'/'+str(i[1][j])+';')
+                        outFile.write(
+                            '\t'+pep+'\t'+str(self.pepdic[pep][3])+'\t'+str(self.pepdic[pep][5])+'\t')
+                        outFile.write(str(self.pepdic[pep][4])+'\t')
+                        # outFile.write(str(Sprob[Sp_index])+'\n')
+                        outFile.write(
+                            str(Sprob[Sp_index])+'\t'+str(i[-2])+'\n')
 
     def executionTime(func):  # timer decorator
         def wrapper(*args, **kwargs):
@@ -276,387 +356,9 @@ class GenomicLocation:
 
     @executionTime
     def process(self):
-        with open(ms2db_file_name, 'r') as inFile:
-            for line in inFile:
-                if line.find('<Database') > -1:
-                    continue
-                if line.find('<Gene Name=') > -1:
-                    tmp = line.split('"')
-                    self.geneName = tmp[1]
-                    self.ExonCount = tmp[3]
-                    self.ForwardFlag = int(tmp[7])
-                    self.exon_length = []
-                    self.exon_array = []
-                    self.next_exon = []
-                    self.previous_exon = []
-                    self.coordi_start = []
-                    self.coordi_end = []
-                    self.source_exon = []
-                    self.incoming_indicator = []
-                    for i in range(int(self.ExonCount)):
-                        self.exon_length.append(0)
-                        self.exon_array.append('')
-                        self.next_exon.append({})
-                        self.previous_exon.append({})
-                        self.incoming_indicator.append(1)
-                        self.coordi_start.append(0)
-                        self.coordi_end.append(0)
-                    continue
-                if line.find('<Exon Index') > -1:
-                    tmp = line.split('"')
-                    self.current_exon = int(tmp[1])
-                    self.coordi_start[self.current_exon] = int(tmp[3])
-                    self.coordi_end[self.current_exon] = int(tmp[5])
-                    continue
-                if line.find('<ExonSequence') > -1:
-                    tmp = line.split('"')
-                    self.exon_length[self.current_exon] = int(tmp[1])
-                    tmp1 = tmp[2].split('>')
-                    tmp2 = tmp1[1].split('<')
-                    self.exon_array[self.current_exon] = tmp2[0]
-                    if self.coordi_end[self.current_exon] < 0:
-                        self.coordi_start[self.current_exon] = \
-                            self.coordi_end[self.current_exon] - \
-                            self.exon_length[self.current_exon]
-                    continue
-                if line.find('<ExtendsExon Index=') > -1:
-                    tmp = line.split('"')
-                    self.previous_exon[self.current_exon][int(tmp[1])] = 0
-                    continue
-                if line.find('<LinkFrom Index=') > -1:
-                    tmp = line.split('"')
-                    self.previous_exon[self.current_exon][int(tmp[1])] = 1
-                    continue
-                if line.find('<LinkFromInsertion Index=') > -1:
-                    tmp = line.split('"')
-                    self.previous_exon[self.current_exon][int(tmp[1])] = 2
-                    continue
-                if line.find('<LinkFromDeletion Index=') > -1:
-                    tmp = line.split('"')
-                    self.previous_exon[self.current_exon][int(tmp[1])] = 3
-                    continue
-                if line.find('<LinkFromMutation Index=') > -1:
-                    tmp = line.split('"')
-                    self.previous_exon[self.current_exon][int(tmp[1])] = 4
-                    continue
-                if line.find('</Gene>') == -1:
-                    continue
-                if line.find('</Gene>') > -1:
-                    error = 0
-                    for i in range(len(self.previous_exon)):
-                        tmp = self.previous_exon[i].keys()
-                        for k in tmp:
-                            if k >= len(self.previous_exon):
-                                error = 1
-                                print 'Unfeasible link in: ' + str(self.current_exon)
-                                break
-                        if error == 1:
-                            break
-                        if self.previous_exon[i] == {}:
-                            self.source_exon.append(i)
-                        else:
-                            for j in self.previous_exon[i].keys():
-                                self.next_exon[j][i] = self.previous_exon[i][j]
-                    if error == 1:
-                        continue
-                    for depth in xrange(int(self.ExonCount)):
-                        if self.incoming_indicator[depth] != 1:
-                            continue
-                        if self.ForwardFlag == 0:
-                            coordi_x = self.coordi_end[depth]
-                        else:
-                            coordi_x = self.coordi_start[depth]
-                        self.check_walk = [0]
-                        self.MPS(depth, [], self.exon_array, coordi_x)
-                    continue
-
-    def writeAA(self, output_array, path, coordi_x, coordi_y):
-        if 'X' in output_array or 'N' in output_array:
-            return
-        AA_array = self.getAA(output_array)
-        tmp_s = []
-        tmp_e = []
-        check_deletion = []
-        for i in range(len(path)):
-            if path[i] != path[-1]:
-                if self.next_exon[path[i]][path[i+1]] == 3:
-                    check_deletion.append(path[i])
-
-        for i in path:
-            tmp_s.append(self.coordi_start[i])
-            tmp_e.append(self.coordi_end[i])
-        if self.ForwardFlag == 0:
-            tmp_e[0] = coordi_x
-            tmp_s[len(tmp_s)-1] = coordi_y
-            if len(tmp_s) == 1:
-                tmp_s[0] = coordi_y
-                tmp_e[0] = coordi_x
-        else:
-            tmp_s[0] = coordi_x
-            tmp_e[len(tmp_e)-1] = coordi_y
-        if self.ForwardFlag == 0:
-            i = 0
-            while i < len(tmp_s)-1:
-                while tmp_s[i] == tmp_e[i+1]:
-                    tmp_s[i] = tmp_s[i+1]
-                    del tmp_s[i+1]
-                    del tmp_e[i+1]
-                    if i == len(tmp_s)-1:
-                        break
-                i += 1
-        else:
-            i = 0
-            while i < len(tmp_s)-1:
-                while tmp_e[i] == tmp_s[i+1]:
-                    tmp_e[i] = tmp_e[i+1]
-                    del tmp_s[i+1]
-                    del tmp_e[i+1]
-                    if i == len(tmp_s)-1:
-                        break
-                i += 1
-        code_len = 0
-        s_len = tmp_e[0] - tmp_s[0]
-        e_len = tmp_e[len(tmp_s)-1] - tmp_s[len(tmp_s)-1]
-        for j in range(len(tmp_s)):
-            code_len += (tmp_e[j] - tmp_s[j])
-        for j in range(3):
-            self.outFile.write('>Splice@'+self.geneName+'@' +
-                               str(self.counter_idx)+'@'+str(self.ForwardFlag)+';')
-            self.counter_idx += 1
-            for i in range(len(tmp_s)):
-                if self.ForwardFlag == 0:
-                    if i == 0:
-                        if s_len == 1:
-                            if j == 0:
-                                self.outFile.write(
-                                    str(tmp_s[i])+'/'+str(tmp_e[i]-j)+';')
-                            else:
-                                continue
-                        elif s_len == 2:
-                            if j == 0 or 1:
-                                self.outFile.write(
-                                    str(tmp_s[i])+'/'+str(tmp_e[i]-j)+';')
-                            else:
-                                continue
-                        else:
-                            self.outFile.write(
-                                str(tmp_s[i])+'/'+str(tmp_e[i]-j)+';')
-                    elif i == len(tmp_s)-2 and e_len == 1 and (code_len-j) % 3 == 2:
-                        self.outFile.write(
-                            str(tmp_s[i]+1)+'/'+str(tmp_e[i])+';')
-                        break
-                    elif i == len(tmp_s)-1:
-                        self.outFile.write(
-                            str(tmp_s[i]+(code_len-j) % 3)+'/'+str(tmp_e[i])+';')
-                    else:
-                        if s_len == 1 and j == 2 and i == 1:
-                            self.outFile.write(
-                                str(tmp_s[i])+'/'+str(tmp_e[i]-1)+';')
-                        else:
-                            self.outFile.write(
-                                str(tmp_s[i])+'/'+str(tmp_e[i])+';')
-                else:
-                    if i == 0:
-                        if s_len == 1:
-                            if j == 0:
-                                self.outFile.write(
-                                    str(tmp_s[i])+'/'+str(tmp_e[i]-j)+';')
-                            else:
-                                continue
-                        elif s_len == 2:
-                            if j == 0 or 1:
-                                self.outFile.write(
-                                    str(tmp_s[i]+j)+'/'+str(tmp_e[i])+';')
-                            else:
-                                continue
-                        else:
-                            self.outFile.write(
-                                str(tmp_s[i]+j)+'/'+str(tmp_e[i])+';')
-                    elif i == len(tmp_s)-2 and e_len == 1 and (code_len-j) % 3 == 2:
-                        self.outFile.write(
-                            str(tmp_s[i])+'/'+str(tmp_e[i]-1)+';')
-                        break
-                    elif i == len(tmp_s)-1:
-                        self.outFile.write(
-                            str(tmp_s[i])+'/'+str(tmp_e[i]-(code_len-j) % 3)+';')
-                    else:
-                        if s_len == 1 and j == 2 and i == 1:
-                            self.outFile.write(
-                                str(tmp_s[i]+1)+'/'+str(tmp_e[i])+';')
-                        else:
-                            self.outFile.write(
-                                str(tmp_s[i])+'/'+str(tmp_e[i])+';')
-
-            for i in check_deletion:
-                if self.ForwardFlag == 0:
-                    self.outFile.write(
-                        '<deletion>' + str(self.coordi_start[i])+' ')
-                else:
-                    self.outFile.write(
-                        '<deletion>' + str(self.coordi_end[i])+' ')
-            self.outFile.write('\n')
-            self.outFile.write(AA_array[j] + '\n')
-
-            if (os.path.getsize(self.out_file_name) > 100*1024*1024):
-                self.file_counter_idx += 1
-                self.out_file_name = self.file_n+"_" + \
-                    str(self.file_counter_idx)+self.ext_n
-                self.outFile.close()
-                self.outFile = open(self.out_file_name, 'w')
-
-    def checkLoop(self, node_index, path):
-        if node_index in path:
-            print 'loop exist in: ' + self.geneName + ' at path ',
-            for i in path:
-                print str(i)+' ',
-            print node_index
-            return True
-        return False
-
-    def MPS2(self, node_index, L_tmp, path, tmp_array, coordi_x):
-        self.check_walk[-1] += self.exon_length[node_index]
-        if self.checkLoop(node_index, path):
-            return path
-        output_array = ''
-        tmp_path = []
-        if L_tmp - self.exon_length[node_index] < 0 or node_index > self.depth_cutoff:
-            path.append(node_index)
-            for i in range(len(path)):
-                if i != len(path)-1:
-                    output_array += tmp_array[path[i]]
-                    if output_array != '':
-                        tmp_path.append(path[i])
-                else:
-                    output_array = output_array + tmp_array[path[i]][:L_tmp]
-                    tmp_path.append(path[i])
-            if self.ForwardFlag == 0:
-                coordi_y = self.coordi_end[node_index] - L_tmp
-            else:
-                coordi_y = self.coordi_start[node_index] + L_tmp
-            self.writeAA(output_array, tmp_path, coordi_x, coordi_y)
-            path.pop()
-            return
-        elif len(self.next_exon[node_index]) == 0 or node_index > self.depth_cutoff:
-            path.append(node_index)
-            for i in range(len(path)):
-                output_array += tmp_array[path[i]]
-                if output_array != '':
-                    tmp_path.append(path[i])
-            if self.ForwardFlag == 0:
-                coordi_y = self.coordi_start[node_index]
-            else:
-                coordi_y = self.coordi_end[node_index]
-            self.writeAA(output_array, tmp_path, coordi_x, coordi_y)
-            path.pop()
-            return
-        else:
-            L_tmp = L_tmp - self.exon_length[node_index]
-            tmp = self.next_exon[node_index].keys()
-            tmp.sort()
-            for k, j in enumerate(tmp):
-                if k == 0:
-                    if self.check_walk[-1] < self.min_exon_len and self.coordi_end[j] < 0:
-                        continue
-                    self.check_walk.append(self.check_walk[-1])
-                    if self.next_exon[node_index][j] != 0:
-                        self.check_walk[-1] = 0
-                    path.append(node_index)
-                    self.MPS2(j, L_tmp, path, tmp_array, coordi_x)
-                    self.check_walk.pop()
-                    path.pop()
-                else:
-                    self.check_walk.append(self.check_walk[-1])
-                    if self.next_exon[node_index][j] != 0 and self.check_walk[-1] < self.min_exon_len:
-                        self.check_walk.pop()
-                        continue
-                    elif self.next_exon[node_index][j] != 0:
-                        self.check_walk[-1] = 0
-                    path.append(node_index)
-                    tmp_sum = self.nu_length
-                    tmp_array = self.exon_array[:]
-                    for i in range(len(path)):
-                        tmp_sum = tmp_sum - \
-                            self.exon_length[path[len(path)-i-1]]
-                        if tmp_sum <= 0 and tmp_sum + self.exon_length[path[len(path)-i-1]] > 0:
-                            tmp_array[
-                                path[len(path)-i-1]] = tmp_array[path[len(path)-i-1]][-tmp_sum:]
-                            if self.ForwardFlag == 0:
-                                coordi_x = self.coordi_start[
-                                    path[len(path)-i-1]] + (tmp_sum + self.exon_length[path[len(path)-i-1]])
-                            else:
-                                coordi_x = self.coordi_end[
-                                    path[len(path)-i-1]] - (tmp_sum + self.exon_length[path[len(path)-i-1]])
-                        elif tmp_sum <= 0:
-                            tmp_array[path[len(path)-i-1]] = ''
-                    self.MPS2(j, L_tmp, path, tmp_array, coordi_x)
-                    self.check_walk.pop()
-                    path.pop()
-
-    def MPS(self, node_index, path, temp_array, coordi_x):
-        self.check_walk[-1] += self.exon_length[node_index]
-        output_array = ''
-        temp_path = []
-        if self.incoming_indicator[node_index] == 2:
-            self.MPS2(node_index, self.nu_length, path, temp_array, coordi_x)
-        elif len(self.next_exon[node_index]) == 0 or node_index > self.depth_cutoff:
-            self.incoming_indicator[node_index] = 2
-            path.append(node_index)
-            for i in range(len(path)):
-                output_array += temp_array[path[i]]
-                if output_array != '':
-                    temp_path.append(path[i])
-            if self.ForwardFlag == 0:
-                coordi_y = self.coordi_start[node_index]
-            else:
-                coordi_y = self.coordi_end[node_index]
-            self.writeAA(output_array, temp_path, coordi_x, coordi_y)
-            path.pop()
-            return
-        else:
-            self.incoming_indicator[node_index] = 2
-            temp = self.next_exon[node_index].keys()
-            temp.sort()
-            for k, j in enumerate(temp):
-                if k == 0:
-                    if self.check_walk[-1] < self.min_exon_len and self.coordi_end[j] < 0:
-                        continue
-                    self.check_walk.append(self.check_walk[-1])
-                    if self.next_exon[node_index][j] != 0:
-                        self.check_walk[-1] = 0
-                    path.append(node_index)
-                    self.MPS(j, path, temp_array, coordi_x)
-                    self.check_walk.pop()
-                    path.pop()
-                else:
-                    self.check_walk.append(self.check_walk[-1])
-                    if self.next_exon[node_index][j] != 0 and self.check_walk[-1] < self.min_exon_len:
-                        # print geneName,path,node_index,self.check_walk
-                        self.check_walk.pop()
-                        continue
-                    elif self.next_exon[node_index][j] != 0:
-                        self.check_walk[-1] = 0
-                    path.append(node_index)
-                    tmp_sum = self.nu_length
-                    temp_array = self.exon_array[:]
-                    for i in range(len(path)):
-                        tmp_sum = tmp_sum - \
-                            self.exon_length[path[len(path)-i-1]]
-                        if tmp_sum <= 0 and tmp_sum + self.exon_length[path[len(path)-i-1]] > 0:
-                            temp_array[
-                                path[len(path)-i-1]] = temp_array[path[len(path)-i-1]][-tmp_sum:]
-                            if self.ForwardFlag == 0:
-                                coordi_x = self.coordi_start[path[len(path)-i-1]] \
-                                    + tmp_sum \
-                                    + self.exon_length[path[len(path)-i-1]]
-                            else:
-                                coordi_x = self.coordi_end[path[len(path)-i-1]] \
-                                    - tmp_sum \
-                                    - self.exon_length[path[len(path)-i-1]]
-                        elif tmp_sum <= 0:
-                            temp_array[path[len(path)-i-1]] = ''
-                    self.MPS(j, path, temp_array, coordi_x)
-                    self.check_walk.pop()
-                    path.pop()
+        print 'Processing Locations....'
+        self.SpliceDBRead()
+        self.LocationCounts()
 
 
 if __name__ == "__main__":
@@ -678,6 +380,9 @@ if __name__ == "__main__":
 
     master_seq = formats.parseRefProtFASTA(ref_fa_file_name)
     loc_obj = GenomicLocation(master_seq,
-                              ref_fa_file_name, fasta_database_name, location_file_name, ms_result_file_name)
-    # loc_obj.process()
+                              ref_fa_file_name,
+                              fasta_database_name,
+                              location_file_name,
+                              ms_result_file_name)
+    loc_obj.process()
     del loc_obj

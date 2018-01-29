@@ -17,6 +17,7 @@ vcf_spl_bam_dir_ = os.path.join(script_dir, 'vcf')
 ms2db_file_name_ = os.path.join(
     script_dir, 'ms2db', 'vcf_somatic_test_2.ms2db')
 fasta_out_file_ = os.path.join(script_dir, 'fa', 'vcf_somatic_test_gae_2.fa')
+fasta_out_file_ = os.path.join(script_dir, 'fa', 'dbSNP_clinvar.fa')
 max_part_AA_len_ = 30
 # gene_module.py
 vcf_file_name_ = 'common_all_20170403_0.vcf'
@@ -27,6 +28,10 @@ ms_result_file_ = os.path.join(
     script_dir, 'ms_result', '20180126_ALDER_G2957_470_560_directDIA_20180125F1_Peptide.xls')
 location_file_ = os.path.join(
     script_dir, 'loc', '20180126_ALDER_G2957_470_560_directDIA_20180125F1_Peptide.txt')
+# Event_module.py
+gff_file_name_ = os.path.join(script_dir, 'gff', 'Homo_sapiens.GRCh38.88.gff3')
+event_filename_ = os.path.join(
+    script_dir, 'event', location_file_.replace('.txt', '_event.txt'))
 
 
 def empty_spl():
@@ -73,6 +78,16 @@ def location_file():
 
 def ms_result_file():
     return ms_result_file_
+
+# Location_module.py
+
+
+def gff_file_name():
+    return gff_file_name_
+
+
+def event_filename():
+    return event_filename_
 
 
 # debug_output_on_ = False # False # True
