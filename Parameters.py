@@ -11,13 +11,16 @@ script_dir = dirname(__file__)
 # Parameters
 # SPL_generator_module.py
 empty_spl_ = os.path.join(script_dir, 'spl', 'empty.spl')
-spl_out_file_name_ = os.path.join(script_dir, 'spl', 'vcf_somatic_test_2.spl')
-vcf_spl_bam_dir_ = os.path.join(script_dir, 'vcf')
+spl_out_file_name_ = os.path.join(
+    script_dir, 'spl', 'e9ced82a-4fb2-4df2-84c2-8d55bbe7a372.som.spl')
+vcf_spl_bam_dir_ = os.path.join(
+    script_dir, 'vcf', 'e9ced82a-4fb2-4df2-84c2-8d55bbe7a372.som.vcf')
 # ACGT_module.py
 ms2db_file_name_ = os.path.join(
-    script_dir, 'ms2db', 'vcf_somatic_test_2.ms2db')
-fasta_out_file_ = os.path.join(script_dir, 'fa', 'vcf_somatic_test_gae_2.fa')
+    script_dir, 'ms2db', 'e9ced82a-4fb2-4df2-84c2-8d55bbe7a372.som.ms2db')
 fasta_out_file_ = os.path.join(script_dir, 'fa', 'dbSNP_clinvar.fa')
+fasta_out_file_ = os.path.join(
+    script_dir, 'fa', 'ALDER_som_germ.fa')
 max_part_AA_len_ = 30
 # gene_module.py
 vcf_file_name_ = 'common_all_20170403_0.vcf'
@@ -25,9 +28,11 @@ vcf_file_name_ = 'common_all_20170403_0.vcf'
 ref_fa_file_name_ = os.path.join(
     script_dir, 'ref_fa', 'uniprot_canonical.fasta')
 ms_result_file_ = os.path.join(
-    script_dir, 'ms_result', '20180126_ALDER_G2957_470_560_directDIA_20180125F1_Peptide.xls')
+    script_dir, 'ms_result', '20180131_ALDER_G2957_directDIA_20180131F2_Report.xls')
+ms_result_file_pep_col_ = 9
+header_start_ = 'R.Condition'
 location_file_ = os.path.join(
-    script_dir, 'loc', '20180126_ALDER_G2957_470_560_directDIA_20180125F1_Peptide.txt')
+    script_dir, 'loc', '20180131_ALDER_G2957_directDIA_20180131F2_Report.txt')
 # Event_module.py
 gff_file_name_ = os.path.join(script_dir, 'gff', 'Homo_sapiens.GRCh38.88.gff3')
 event_filename_ = os.path.join(
@@ -79,7 +84,15 @@ def location_file():
 def ms_result_file():
     return ms_result_file_
 
-# Location_module.py
+
+def ms_pep_col():
+    return ms_result_file_pep_col_
+
+
+def header_start():
+    return header_start_
+
+# Event_module.py
 
 
 def gff_file_name():

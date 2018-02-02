@@ -211,13 +211,17 @@ class SPLConvert:
 #       for checkdp in temp:
 #           if checkdp.startswith('DP'):
 #               DP = int(checkdp.split('=')[1])
-            tmp = line[7].split(';')
-            tmp_index = 0
-            for index in xrange(len(tmp)):
-                if tmp[index].startswith('DP='):
-                    tmp_index = index
-#            print line[7], tmp_index
-            DP = int(line[7].split(';')[tmp_index].split('=')[1])
+            if 'DP=' in line[7]:
+                tmp = line[7].split(';')
+                tmp_index = 0
+                for index in xrange(len(tmp)):
+                    if tmp[index].startswith('DP='):
+                        tmp_index = index
+    #            print line[7], tmp_index
+                DP = int(line[7].split(';')[tmp_index].split('=')[1])
+            else:
+                DP = 1
+                continue
             ##
 
             strand = '.'

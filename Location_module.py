@@ -15,8 +15,9 @@ import CustomFormats as formats
 
 class GenomicLocation:
 
-    def __init__(self, master_seq, ref_fa_file, fasta_database_name, location_file_name, ms_result_file_name):
-        self.pep_seq_col = 0
+    def __init__(self, master_seq, ref_fa_file, fasta_database_name, location_file_name, ms_result_file_name, ms_pep_col, header_start):
+        self.pep_seq_col = ms_pep_col
+        self.header_start = header_start
         self.ref_fa_file = ref_fa_file
         self.fasta_database_name = fasta_database_name
         self.location_file_name = location_file_name
@@ -41,7 +42,7 @@ class GenomicLocation:
             for line in inResultFile:
                 if line == "":
                     continue
-                if line.startswith("#") or line.startswith('PEP'):
+                if line.startswith("#") or line.startswith(self.header_start):
                     # caption = line
                     continue
                 data = line.split('\t')
@@ -367,22 +368,30 @@ if __name__ == "__main__":
         fasta_database_name = sys.argv[2]
         location_file_name = sys.argv[3]
         ms_result_file_name = sys.argv[4]
+        ms_pep_col = sys.argv[5]
+        header_start = sys.argv[6]
     elif len(sys.argv) == 0:
         ref_fa_file_name = ''
-        fasta_database_name = '/home/s3cha/data/SpliceDB/IG_VU_DB/fasta_file/UNCID_1582766.974b1fa9-8ee7-4f02-b0ff-221fc98abe5f.sorted_genome_alignments20150521-950-hevqjo_IGH_AND_UNMAPPED_splicegraph_1.fa'
-        location_file_name = '/home/s3cha/data/SpliceDB/IG_VU_DB/temp_location.txt'
-        ms_result_file_name = '/home/s3cha/data/SpliceDB/IG_VU_DB/VU_IG_DB_result_SPEC01.p'
+        fasta_database_name = '/UNCID_1582766.974b1fa9-8ee7-4f02-b0ff-221fc98abe5f.sorted_genome_alignments20150521-950-hevqjo_IGH_AND_UNMAPPED_splicegraph_1.fa'
+        location_file_name = '/IG_VU_DB/temp_location.txt'
+        ms_result_file_name = '/IG_VU_DB/VU_IG_DB_result_SPEC01.p'
+        ms_pep_col = 9
+        header_start = 'PEP'
     else:
         ref_fa_file_name = param.ref_fa_file_name()
         fasta_database_name = param.fasta_out_file()
         location_file_name = param.location_file()
         ms_result_file_name = param.ms_result_file()
+        ms_pep_col = param.ms_pep_col()
+        header_start = param.header_start()
 
     master_seq = formats.parseRefProtFASTA(ref_fa_file_name)
     loc_obj = GenomicLocation(master_seq,
                               ref_fa_file_name,
                               fasta_database_name,
                               location_file_name,
-                              ms_result_file_name)
+                              ms_result_file_name,
+                              ms_pep_col,
+                              header_start)
     loc_obj.process()
     del loc_obj
